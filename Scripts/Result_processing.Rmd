@@ -195,32 +195,82 @@ nms.shorter <- stringr::str_split_fixed(nms.short[,1], "LOG_",2)
 aggr.names <- nms.shorter[,2]
 
 # Including the housekeeping genes:
-aggr.names.housekeeping <- c(aggr.names, rep("DNA_gyrase_A", 6), rep("DNA_gyrase_B", 6), rep("Recombinase_A", 6), rep("RNA_polymerase_A",6), rep("RNA_polymerase_B",6))
+aggr.names.housekeeping <- c(rep("DNA_gyrase_A", 6), rep("DNA_gyrase_B", 6), rep("Recombinase_A", 6), rep("RNA_polymerase_A",6), rep("RNA_polymerase_B",6))
 ```
 
 
 ```{r}
-## aggregating the pathways:
+## aggregating the pathways and housekeeping genes:
 
-# vsensitive
-rownames(mat.vsensitive) <- aggr.names.housekeeping
-short.mat.vsensitive <- aggregate(mat.vsensitive, list(aggr.names.housekeeping), "sum")
+# vsensitive: Pathways
+rownames(mat.vsensitive[1:60,]) <- aggr.names
+short.mat.vsensitive <- aggregate(mat.vsensitive[1:60,], list(aggr.names), "sum")
+rownames(short.mat.vsensitive) <- short.mat.vsensitive$Group.1
+short.mat.vsensitive$Group.1 <- NULL
 
-# sensitive
-rownames(mat.sensitive) <- aggr.names.housekeeping
-short.mat.sensitive <- aggregate(mat.sensitive, list(aggr.names.housekeeping), "sum")
+# vsensitive: Housekeeping genes
+rownames(mat.vsensitive[61:90,]) <- aggr.names.housekeeping
+short.mat.vsensitive.housekeeping <- aggregate(mat.vsensitive[61:90,], list(aggr.names.housekeeping), "mean")
+rownames(short.mat.vsensitive.housekeeping) <- short.mat.vsensitive.housekeeping$Group.1
+short.mat.vsensitive.housekeeping$Group.1 <- NULL
+short.mat.vsensitive.housekeeping <- apply(short.mat.vsensitive.housekeeping, 2, function(x) 4*x)
+short.mat.vsensitive <- rbind(short.mat.vsensitive, short.mat.vsensitive.housekeeping)
 
-# fast
-rownames(mat.fast) <- aggr.names.housekeeping
-short.mat.fast <- aggregate(mat.fast, list(aggr.names.housekeeping), "sum")
+# sensitive: Pathways
+rownames(mat.sensitive[1:60,]) <- aggr.names
+short.mat.sensitive <- aggregate(mat.sensitive[1:60,], list(aggr.names), "sum")
+rownames(short.mat.sensitive) <- short.mat.sensitive$Group.1
+short.mat.sensitive$Group.1 <- NULL
 
-# vfast
-rownames(mat.vfast) <- aggr.names.housekeeping
-short.mat.vfast <- aggregate(mat.vfast, list(aggr.names.housekeeping), "sum")
+# sensitive: Housekeeping genes
+rownames(mat.sensitive[61:90,]) <- aggr.names.housekeeping
+short.mat.sensitive.housekeeping <- aggregate(mat.sensitive[61:90,], list(aggr.names.housekeeping), "mean")
+rownames(short.mat.sensitive.housekeeping) <- short.mat.sensitive.housekeeping$Group.1
+short.mat.sensitive.housekeeping$Group.1 <- NULL
+short.mat.sensitive.housekeeping <- apply(short.mat.sensitive.housekeeping, 2, function(x) 4*x)
+short.mat.sensitive <- rbind(short.mat.sensitive, short.mat.sensitive.housekeeping)
 
-# oral
-rownames(mat.oral) <- aggr.names.housekeeping
-short.mat.oral <- aggregate(mat.oral, list(aggr.names.housekeeping), "sum")
+# fast: Pathways
+rownames(mat.fast[1:60,]) <- aggr.names
+short.mat.fast <- aggregate(mat.fast[1:60,], list(aggr.names), "sum")
+rownames(short.mat.fast) <- short.mat.fast$Group.1
+short.mat.fast$Group.1 <- NULL
+
+# fast: Housekeeping genes
+rownames(mat.fast[61:90,]) <- aggr.names.housekeeping
+short.mat.fast.housekeeping <- aggregate(mat.fast[61:90,], list(aggr.names.housekeeping), "mean")
+rownames(short.mat.fast.housekeeping) <- short.mat.fast.housekeeping$Group.1
+short.mat.fast.housekeeping$Group.1 <- NULL
+short.mat.fast.housekeeping <- apply(short.mat.fast.housekeeping, 2, function(x) 4*x)
+short.mat.fast <- rbind(short.mat.fast, short.mat.fast.housekeeping)
+
+# vfast: Pathways
+rownames(mat.vfast[1:60,]) <- aggr.names
+short.mat.vfast <- aggregate(mat.vfast[1:60,], list(aggr.names), "sum")
+rownames(short.mat.vfast) <- short.mat.vfast$Group.1
+short.mat.vfast$Group.1 <- NULL
+
+# vfast: Housekeeping genes
+rownames(mat.vfast[61:90,]) <- aggr.names.housekeeping
+short.mat.vfast.housekeeping <- aggregate(mat.vfast[61:90,], list(aggr.names.housekeeping), "mean")
+rownames(short.mat.vfast.housekeeping) <- short.mat.vfast.housekeeping$Group.1
+short.mat.vfast.housekeeping$Group.1 <- NULL
+short.mat.vfast.housekeeping <- apply(short.mat.vfast.housekeeping, 2, function(x) 4*x)
+short.mat.vfast <- rbind(short.mat.vfast, short.mat.vfast.housekeeping)
+
+# oral: Pathways
+rownames(mat.oral[1:60,]) <- aggr.names
+short.mat.oral <- aggregate(mat.oral[1:60,], list(aggr.names), "sum")
+rownames(short.mat.oral) <- short.mat.oral$Group.1
+short.mat.oral$Group.1 <- NULL
+
+# oral: Housekeeping genes
+rownames(mat.oral[61:90,]) <- aggr.names.housekeeping
+short.mat.oral.housekeeping <- aggregate(mat.oral[61:90,], list(aggr.names.housekeeping), "mean")
+rownames(short.mat.oral.housekeeping) <- short.mat.oral.housekeeping$Group.1
+short.mat.oral.housekeeping$Group.1 <- NULL
+short.mat.oral.housekeeping <- apply(short.mat.oral.housekeeping, 2, function(x) 4*x)
+short.mat.oral <- rbind(short.mat.oral, short.mat.oral.housekeeping)
 ```
 
 ## 4.2 Renaming the sample names:
@@ -245,24 +295,14 @@ sample.names.number <- c(sample.groups.wgs.number, sample.groups.trans.number)
 
 ```{r}
 ## renaming the colnames for clear sample names:
-rownames(short.mat.vsensitive) <- short.mat.vsensitive$Group.1
-short.mat.vsensitive$Group.1 <- NULL
 colnames(short.mat.vsensitive) <- sample.names.number
 
-rownames(short.mat.sensitive) <- short.mat.sensitive$Group.1
-short.mat.sensitive$Group.1 <- NULL
 colnames(short.mat.sensitive) <- sample.names.number
 
-rownames(short.mat.fast) <- short.mat.fast$Group.1
-short.mat.fast$Group.1 <- NULL
 colnames(short.mat.fast) <- sample.names.number
 
-rownames(short.mat.vfast) <- short.mat.vfast$Group.1
-short.mat.vfast$Group.1 <- NULL
 colnames(short.mat.vfast) <- sample.names.number
 
-rownames(short.mat.oral) <- short.mat.oral$Group.1
-short.mat.oral$Group.1 <- NULL
 colnames(short.mat.oral) <- oral.names
 ```
 
@@ -751,7 +791,9 @@ New things:
 
 - backup all my stuff to nexenta
 - mention significance in heatmap
+
 - document scripts (github)
+--> Done
 
 
 
