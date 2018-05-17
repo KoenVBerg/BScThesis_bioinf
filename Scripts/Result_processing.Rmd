@@ -1,0 +1,777 @@
+n---
+title: "Representation of samples"
+author: "Koen van den Berg"
+date: "12 april 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+source("https://bioconductor.org/biocLite.R")
+biocLite("metagenomeSeq")
+```
+
+Loading in the libraries
+```{r}
+library(pheatmap)
+library(ggplot2)
+library(metagenomeSeq)
+require(interactiveDisplay)
+require(reshape2)
+library(factoextra)
+library(RColorBrewer)
+library(viridis)
+library(forecast)
+```
+
+
+## Steps:
+
+1) Loading in the data
+2) Making the metagenomeSeq object
+3) Normalization
+4) Aggregation
+5) Visualizations 
+6) Testing significance
+
+## 1) obtaining the dataframes
+# 1.1 Loading and transposing
+```{r}
+## very-sensitive
+# Loading in the metagenomic data:
+dat.wgs.vsensitive <- read.csv("metagenomes_TPM_verysensitivelocal_table.txt", sep = "\t", header = F)
+dat.wgs.vsensitive$V92 <- NULL
+dat.wgs.vsensitive <- t(dat.wgs.vsensitive)
+
+# Loading in the metatranscriptomic data:
+dat.trans.vsensitive <- read.csv("metatranscriptomes_TPM_verysensitivelocal_table.txt", sep = "\t", header = F)
+dat.trans.vsensitive$V92 <- NULL
+dat.trans.vsensitive <- t(dat.trans.vsensitive)
+
+## sensitive
+# Loading in the metagenomic data:
+dat.wgs.sensitive <- read.csv("metagenomes_TPM_sensitivelocal_table.txt", sep = "\t", header = F)
+dat.wgs.sensitive$V92 <- NULL
+dat.wgs.sensitive <- t(dat.wgs.sensitive)
+
+# Loading in the metatranscriptomic data:
+dat.trans.sensitive <- read.csv("metatranscriptomes_TPM_sensitivelocal_table.txt", sep = "\t", header = F)
+dat.trans.sensitive$V92 <- NULL
+dat.trans.sensitive <- t(dat.trans.sensitive)
+
+## fast
+# Loading in the metagenomic data:
+dat.wgs.fast <- read.csv("metagenomes_TPM_fastlocal_table.txt", sep = "\t", header = F)
+dat.wgs.fast$V92 <- NULL
+dat.wgs.fast <- t(dat.wgs.fast)
+
+# Loading in the metatranscriptomic data:
+dat.trans.fast <- read.csv("metatranscriptomes_TPM_fastlocal_table.txt", sep = "\t", header = F)
+dat.trans.fast$V92 <- NULL
+dat.trans.fast <- t(dat.trans.fast)
+
+## very-fast
+# Loading in the metagenomic data:
+dat.wgs.vfast <- read.csv("metagenomes_TPM_veryfastlocal_table.txt", sep = "\t", header = F)
+dat.wgs.vfast$V92 <- NULL
+dat.wgs.vfast <- t(dat.wgs.vfast)
+
+# Loading in the metatranscriptomic data:
+dat.trans.vfast <- read.csv("metatranscriptomes_TPM_veryfastlocal_table.txt", sep = "\t", header = F)
+dat.trans.vfast$V92 <- NULL
+dat.trans.vfast <- t(dat.trans.vfast)
+
+## oral/saliva samples
+dat.oral <- read.csv("TPM_count_sensitive_saliva_2.txt", sep = "\t", header = F)
+dat.oral$V92 <- NULL
+dat.oral <- t(dat.oral)
+```
+
+# 1.2 Sanitiy check:
+
+```{r}
+dim(dat.wgs.vsensitive)
+dim(dat.wgs.sensitive)
+dim(dat.wgs.fast)
+dim(dat.wgs.vfast)
+
+dim(dat.trans.vsensitive)
+dim(dat.trans.sensitive)
+dim(dat.trans.fast)
+dim(dat.trans.vfast)
+
+dim(dat.oral)
+```
+Here the dataframes have one row and column to many which are the rownames and colnames. However, these will be removed after writing the files for the proper file format for reading in the file as metagenomeseq object. 
+
+The 91 stems from the addition of the 30 housekeeping genes as well. 
+
+# 1.3 Combining both data:
+
+```{r}
+dat.all.vsensitive <- data.frame(dat.wgs.vsensitive, dat.trans.vsensitive)
+dat.all.vsensitive$X1.1 <- NULL
+
+dat.all.sensitive <- data.frame(dat.wgs.sensitive, dat.trans.sensitive)
+dat.all.sensitive$X1.1 <- NULL
+
+dat.all.fast <- data.frame(dat.wgs.fast, dat.trans.fast)
+dat.all.fast$X1.1 <- NULL
+
+dat.all.vfast <- data.frame(dat.wgs.vfast, dat.trans.vfast)
+dat.all.vfast$X1.1 <- NULL
+```
+
+
+
+# 1.4 writing the data to new file so that it can be loaded into metagenomeseq
+```{r}
+# Writing the data so that it can be read in as a MetagenomeSeq object, this includes removing the quotation marks and the rownames 
+write.table(dat.all.vsensitive, file = "metagenomeSeq_vsensitive.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
+write.table(dat.all.sensitive, file = "metagenomeSeq_sensitive.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
+
+write.table(dat.all.fast, file = "metagenomeSeq_fast.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
+
+write.table(dat.all.vfast, file = "metagenomeSeq_vfast.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
+
+write.table(dat.oral, file = "metaSeq_oral.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
+
+```
+
+
+## 2) Making the MetagenomeSeq object
+
+# 2.1 loading the data
+```{r}
+# All data:
+met.vsensitive <- loadMeta("metagenomeSeq_vsensitive.txt", sep = "\t")
+met.sensitive <- loadMeta("metagenomeSeq_sensitive.txt", sep = "\t")
+met.fast <- loadMeta("metagenomeSeq_fast.txt", sep = "\t")
+met.vfast <- loadMeta("metagenomeSeq_vfast.txt", sep = "\t")
+met.oral <- loadMeta("metaSeq_oral.txt", sep = "\t")
+```
+
+# 2.2 building the objects
+```{r}
+# Making the metagenomeSeq objects:
+d.vsensitive <- newMRexperiment(met.vsensitive$counts)
+d.sensitive <- newMRexperiment(met.sensitive$counts)
+d.fast <- newMRexperiment(met.fast$counts)
+d.vfast <- newMRexperiment(met.vfast$counts)
+d.oral <- newMRexperiment(met.oral$counts)
+```
+
+## 3) Normalization of the data: (library size)
+```{r}
+# All data:
+#head(normFactors(d.all))
+#p <- cumNormStatFast(d.all)
+#d.all <- cumNorm(d.all, p = p)
+mat.vsensitive <- MRcounts(d.vsensitive, norm = T, log = T)
+mat.sensitive <- MRcounts(d.sensitive, norm = T, log = T)
+mat.fast <- MRcounts(d.fast, norm = T, log = T)
+mat.vfast <- MRcounts(d.vfast, norm = T, log = T)
+mat.oral <- MRcounts(d.oral, norm = T, log = T)
+
+# norm -- normalization for lib size
+# log -- log transformation to obtain managable numbers
+```
+Note: It is important that the samples were already normalized for transcript length and total rate (TPM). Here the samples get normalized for lib size as well. It does not matter in this case that the data is already combined before normalization, as the normalization happens per sample. This means that the samples do not influence the normalization of other samples. 
+
+## 4) Concatenation & aggregation
+# 4.1 Concatenation of HOMOLOGS with original pathways:
+
+Making the aggragation ready data matrix:
+```{r}
+mat.proper.names <- read.csv("mat_all_proper_rownames.txt", sep = "\t")
+proper.names <- mat.proper.names$X
+
+# Renaming the rownames:
+nms.short <- stringr::str_split_fixed(proper.names, "_\\d+__", 2)
+nms.shorter <- stringr::str_split_fixed(nms.short[,1], "LOG_",2)
+aggr.names <- nms.shorter[,2]
+
+# Including the housekeeping genes:
+aggr.names.housekeeping <- c(aggr.names, rep("DNA_gyrase_A", 6), rep("DNA_gyrase_B", 6), rep("Recombinase_A", 6), rep("RNA_polymerase_A",6), rep("RNA_polymerase_B",6))
+```
+
+
+```{r}
+## aggregating the pathways:
+
+# vsensitive
+rownames(mat.vsensitive) <- aggr.names.housekeeping
+short.mat.vsensitive <- aggregate(mat.vsensitive, list(aggr.names.housekeeping), "sum")
+
+# sensitive
+rownames(mat.sensitive) <- aggr.names.housekeeping
+short.mat.sensitive <- aggregate(mat.sensitive, list(aggr.names.housekeeping), "sum")
+
+# fast
+rownames(mat.fast) <- aggr.names.housekeeping
+short.mat.fast <- aggregate(mat.fast, list(aggr.names.housekeeping), "sum")
+
+# vfast
+rownames(mat.vfast) <- aggr.names.housekeeping
+short.mat.vfast <- aggregate(mat.vfast, list(aggr.names.housekeeping), "sum")
+
+# oral
+rownames(mat.oral) <- aggr.names.housekeeping
+short.mat.oral <- aggregate(mat.oral, list(aggr.names.housekeeping), "sum")
+```
+
+# 4.2 Renaming the sample names:
+
+Here I used the SRA runtable to look up which samples belong to each other. Then I make a vector that contains those sample names. 
+```{r}
+# Without number for aggregation by name for mean
+sample.groups.wgs <- c("WGS_1","WGS_2","WGS_3","WGS_4","WGS_1","WGS_3","WGS_2","WGS_5","WGS_4","WGS_5","WGS_6","WGS_2","WGS_7","WGS_3","WGS_8","WGS_8","WGS_8","WGS_6","WGS_4","WGS_5","WGS_7","WGS_6","WGS_1", "WGS_7")
+sample.groups.trans <- c("TRANS_4",	"TRANS_3",	"TRANS_2",	"TRANS_6",	"TRANS_2",	"TRANS_7",	"TRANS_8",	"TRANS_8","TRANS_2",	"TRANS_1",	"TRANS_4",	"TRANS_5",	"TRANS_5",	"TRANS_3",	"TRANS_1",	"TRANS_5",	"TRANS_7",	"TRANS_4",	"TRANS_6",	"TRANS_1",	"TRANS_6",	"TRANS_3",	"TRANS_8",	"TRANS_7")
+
+# With number for clear vizualisations.
+sample.groups.wgs.number <- c("WGS_1.1","WGS_2.1","WGS_3.1","WGS_4.1","WGS_1.2","WGS_3.2","WGS_2.2","WGS_5.1","WGS_4.2","WGS_5.2","WGS_6.1","WGS_2.3","WGS_7.1","WGS_3.3","WGS_8.1","WGS_8.2","WGS_8.3","WGS_6.2","WGS_4.3","WGS_5.3","WGS_7.2","WGS_6.3","WGS_1.3", "WGS_7.3")
+sample.groups.trans.number <- c("TRANS_4.1",	"TRANS_3.1",	"TRANS_2.1",	"TRANS_6.1",	"TRANS_2.2",	"TRANS_7.1",	"TRANS_8.1",	"TRANS_8.2","TRANS_2.3",	"TRANS_1.1",	"TRANS_4.2",	"TRANS_5.1",	"TRANS_5.2",	"TRANS_3.2",	"TRANS_1.2",	"TRANS_5.3",	"TRANS_7.2",	"TRANS_4.3",	"TRANS_6.2",	"TRANS_1.3",	"TRANS_6.3",	"TRANS_3.3",	"TRANS_8.3",	"TRANS_7.3")
+
+# For the oral samples as they have different order and should be patient specific. Now they are synced with the stool wgs samples
+oral.names <- c("WGS_4","WGS_2","WGS_6","WGS_7","WGS_8","WGS_1","WGS_5","WGS_3")
+
+# Combining the names into a vector adequate for renaming the short.matrices
+sample.names <- c(sample.groups.wgs, sample.groups.trans)
+sample.names.number <- c(sample.groups.wgs.number, sample.groups.trans.number)
+```
+
+```{r}
+## renaming the colnames for clear sample names:
+rownames(short.mat.vsensitive) <- short.mat.vsensitive$Group.1
+short.mat.vsensitive$Group.1 <- NULL
+colnames(short.mat.vsensitive) <- sample.names.number
+
+rownames(short.mat.sensitive) <- short.mat.sensitive$Group.1
+short.mat.sensitive$Group.1 <- NULL
+colnames(short.mat.sensitive) <- sample.names.number
+
+rownames(short.mat.fast) <- short.mat.fast$Group.1
+short.mat.fast$Group.1 <- NULL
+colnames(short.mat.fast) <- sample.names.number
+
+rownames(short.mat.vfast) <- short.mat.vfast$Group.1
+short.mat.vfast$Group.1 <- NULL
+colnames(short.mat.vfast) <- sample.names.number
+
+rownames(short.mat.oral) <- short.mat.oral$Group.1
+short.mat.oral$Group.1 <- NULL
+colnames(short.mat.oral) <- oral.names
+```
+
+# 4.3 Aggregation of samples over mean:
+
+```{r}
+## vsensitive
+aggr.mat.vsensitive <- short.mat.vsensitive
+colnames(aggr.mat.vsensitive) <- sample.names
+aggr.mat.vsensitive <- aggregate(t(aggr.mat.vsensitive), list(colnames(aggr.mat.vsensitive)), "mean")
+rownames(aggr.mat.vsensitive) <- aggr.mat.vsensitive$Group.1
+aggr.mat.vsensitive$Group.1 <- NULL
+aggr.mat.vsensitive <- t(aggr.mat.vsensitive)
+
+## sensitive
+aggr.mat.sensitive <- short.mat.sensitive
+colnames(aggr.mat.sensitive) <- sample.names
+aggr.mat.sensitive <- aggregate(t(aggr.mat.sensitive), list(colnames(aggr.mat.sensitive)), "mean")
+rownames(aggr.mat.sensitive) <- aggr.mat.sensitive$Group.1
+aggr.mat.sensitive$Group.1 <- NULL
+aggr.mat.sensitive <- t(aggr.mat.sensitive)
+
+## fast
+aggr.mat.fast <- short.mat.fast
+colnames(aggr.mat.fast) <- sample.names
+aggr.mat.fast <- aggregate(t(aggr.mat.fast), list(colnames(aggr.mat.fast)), "mean")
+rownames(aggr.mat.fast) <- aggr.mat.fast$Group.1
+aggr.mat.fast$Group.1 <- NULL
+aggr.mat.fast <- t(aggr.mat.fast)
+
+## vfast
+aggr.mat.vfast <- short.mat.vfast
+colnames(aggr.mat.vfast) <- sample.names
+aggr.mat.vfast <- aggregate(t(aggr.mat.vfast), list(colnames(aggr.mat.vfast)), "mean")
+rownames(aggr.mat.vfast) <- aggr.mat.vfast$Group.1
+aggr.mat.vfast$Group.1 <- NULL
+aggr.mat.vfast <- t(aggr.mat.vfast)
+
+
+```
+
+```{r}
+## Oral
+# Aggregation not required here as there is only one replicate
+# Making the comparitive dataframe: Oral and stool metegenomic samples
+oral.stool.wgs <- data.frame(short.mat.oral, aggr.mat.sensitive[,9:16])
+nms.oral.stool <- c("oral_4","oral_2","oral_6","oral_7","oral_8","oral_1","oral_5","oral_3", "stool_1", "stool_2","stool_3","stool_4","stool_5","stool_6","stool_7","stool_8")
+colnames(oral.stool.wgs) <- nms.oral.stool
+```
+
+
+Available data from here on is:
+- mat.[method] -- contains all the data including homologs
+- short.mat.[method] -- contains all the data and aggregated pathways. Sample names have been changed for clear visualizations. wh means without housekeeping genes!
+- aggr.mat.[method] -- contains both the aggregated pathways (=sum) and samples (=mean)
+- oral.stool.wgs -- contains both the oral and the stool wgs data with aggregated pathways
+
+Method = (vsensitive, sensitive, fast, vfast)
+
+## 5) Vizualisation:
+
+# 5.1 Method visualization:
+
+
+```{r}
+
+df.method.wgs <- data.frame(rownames(short.mat.vsensitive))
+df.method.wgs$vsensitive_wgs <- rowMeans(short.mat.vsensitive[1:24])
+df.method.wgs$sensitive_wgs <- rowMeans(short.mat.sensitive[1:24])
+df.method.wgs$fast_wgs <- rowMeans(short.mat.fast[1:24])
+df.method.wgs$vfast_wgs <- rowMeans(short.mat.vfast[1:24])
+```
+
+```{r}
+# Melting:
+df.method.wgs <- melt(df.method.wgs)
+```
+
+```{r}
+ggplot(df.method.wgs, aes(x=df.method.wgs$rownames.short.mat.vsensitive., y = df.method.wgs$value, group =df.method.wgs$variable)) + geom_line(aes(linetype=df.method.wgs$variable), size = 1) + theme_classic() + labs(title = "WGS average counts for each method", y = "Count", x="") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+#short.mat.fast <- short.mat.fast[-(7:10),]
+
+df.method.trans <- data.frame(rownames(short.mat.vsensitive))
+df.method.trans$vsensitive_wgs <- rowMeans(short.mat.vsensitive[25:48])
+df.method.trans$sensitive_wgs <- rowMeans(short.mat.sensitive[25:48])
+df.method.trans$fast_wgs <- rowMeans(short.mat.fast[25:48])
+df.method.trans$vfast_wgs <- rowMeans(short.mat.vfast[25:48])
+```
+
+```{r}
+# Melting:
+df.method.trans <- melt(df.method.trans)
+```
+
+```{r}
+ggplot(df.method.trans, aes(x=df.method.trans$rownames.short.mat.vsensitive., y = df.method.trans$value, group =df.method.trans$variable)) + geom_line(aes(linetype=df.method.wgs$variable), size = 1) + theme_classic() + labs(title = "Trans average counts for each method", y = "Count", x="") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+# 5.2 Heatmap:
+
+All data:
+```{r}
+# Column annotations:
+col_groups <- c(rep("wgs", 24),rep("trans", 24))
+mat_col <- data.frame(group = col_groups)
+rownames(mat_col) <- colnames(mat.sensitive)
+
+# Annotation colours:
+mat_colours <- list(group = c("black", "gray"))
+names(mat_colours$group) <- unique(col_groups)
+
+# Making the heatmap
+pheatmap(
+  mat = mat.sensitive, 
+  color = magma(10),
+  border_color = NA,
+  cellwidth = 15, 
+  annotation_col = mat_col,
+  annotation_colors = mat_colours,
+  main = "Heatmap of metatranscriptomic and metagenomic samples", 
+  show_colnames = T,
+  cluster_cols = F)
+
+pheatmap(  mat = mat.sensitive,   color = magma(10),  border_color = NA,  cellwidth = 15,   annotation_col = mat_col,  annotation_colors = mat_colours,  main = "Heatmap of metatranscriptomic and metagenomic samples", show_colnames = T, cluster_cols = F)
+
+
+# From: http://slowkow.com/notes/heatmap-tutorial/
+```
+
+
+Short data:
+```{r}
+# Column annotations:
+col_groups_short <- c(rep("wgs", 24),rep("trans", 24))
+mat_col <- data.frame(group = col_groups_short)
+rownames(mat_col) <- colnames(short.mat.fast)
+
+# Annotation colours:
+mat_colours <- list(group = c("black", "gray"))
+names(mat_colours$group) <- unique(col_groups_short)
+
+# Making the heatmap
+pheatmap(
+  mat = short.mat.fast, 
+  color = magma(10),
+  border_color = NA,
+  cellwidth = 15, 
+  cellheight = 15,
+  annotation_col = mat_col,
+  annotation_colors = mat_colours,
+  main = "Heatmap of metatranscriptomic and metagenomic samples", 
+  show_colnames = T,
+  cluster_cols = F)
+
+pheatmap(  mat = short.mat.fast,   color = magma(10),  border_color = NA,  cellwidth = 15,  cellheight = 15, annotation_names_col = T , annotation_col = mat_col,  annotation_colors = mat_colours,  main = "Heatmap of metatranscriptomic and metagenomic samples", show_colnames = T, cluster_cols = F)
+
+
+# From: http://slowkow.com/notes/heatmap-tutorial/
+```
+
+
+
+
+Concatenated data:
+
+```{r}
+# Column annotations:
+col_groups_conc <- c(rep("trans", 8),rep("wgs", 8))
+mat_col <- data.frame(group = col_groups_conc)
+rownames(mat_col) <- colnames(aggr.mat.fast)
+
+# Annotation colours:
+mat_colours <- list(group = c("black", "gray"))
+names(mat_colours$group) <- unique(col_groups_conc)
+
+# Making the heatmap
+pheatmap(
+  mat = aggr.mat.fast, 
+  color = magma(10),
+  border_color = NA,
+  cellwidth = 15, 
+  cellheight = 15,
+  annotation_col = mat_col,
+  annotation_colors = mat_colours,
+  main = "Heatmap of metatranscriptomic and metagenomic samples", 
+  show_colnames = T,
+  cluster_cols = F)
+
+pheatmap(  mat = aggr.mat.fast,   color = magma(10),  border_color = NA,  cellwidth = 15, cellheight = 15, annotation_col = mat_col,  annotation_colors = mat_colours,  main = "Heatmap of metatranscriptomic and metagenomic samples", show_colnames = T, cluster_cols = F)
+
+
+# From: http://slowkow.com/notes/heatmap-tutorial/
+```
+
+
+
+Oral data vs stool sensitive data:
+```{r}
+# Column annotations:
+col_groups_oral <- c(rep("oral", 8), rep("stool",8))
+mat_oral <- data.frame(group = col_groups_oral)
+rownames(mat_oral) <- colnames(oral.stool.wgs)
+
+# Annotation colours:
+mat_colours <- list(group = c("black", "gray"))
+names(mat_colours$group) <- unique(col_groups_oral)
+
+# Making the heatmap
+pheatmap(
+  mat = oral.stool.wgs, 
+  color = magma(10),
+  border_color = NA,
+  cellwidth = 15, 
+  cellheight = 15,
+  annotation_col = mat_oral,
+  annotation_colors = mat_colours,
+  main = "Heatmap of oral metagenomic samples", 
+  show_colnames = T,
+  cluster_cols = F)
+
+pheatmap(  mat = oral.stool.wgs,   color = magma(10),  border_color = NA,  cellwidth = 15, cellheight = 15, annotation_col = mat_oral, annotation_colors = mat_colours, main = "Heatmap of oral metagenomic samples", show_colnames = T, cluster_cols = F)
+
+
+# From: http://slowkow.com/notes/heatmap-tutorial/
+```
+
+
+# 5.3 PCA all:
+```{r}
+# Initial PCA plot (w outliers)
+pca.all <- prcomp(t(mat.sensitive))
+fviz_pca_ind(pca.all, col.ind = as.factor(col_groups), repel = FALSE, addEllipses=TRUE,ellipse.type="confidence", legend.title="data_type", label = "all")
+
+fviz_pca_ind(pca.all, col.ind = as.factor(col_groups), repel = FALSE, addEllipses=TRUE,ellipse.type="confidence", legend.title="data_type", label = "none")
+
+# Oral samples
+pca.oral <- prcomp(t(oral.stool.wgs))
+fviz_pca_ind(pca.oral, col.ind = as.factor(col_groups_oral), repel = FALSE, addEllipses=TRUE,ellipse.type="confidence", legend.title="data_type", label = "all")
+```
+
+# 5.4 PCA concatenated:
+```{r}
+# Initial PCA plot (w outliers)
+pca.all <- prcomp(t(aggr.mat.sensitive))
+fviz_pca_ind(pca.all, col.ind = as.factor(col_groups_conc), repel = FALSE, addEllipses=TRUE,ellipse.type="confidence", legend.title="data_type", label = "all")
+
+fviz_pca_ind(pca.all, col.ind = as.factor(col_groups_conc), repel = FALSE, addEllipses=TRUE,ellipse.type="confidence", legend.title="data_type", label = "none")
+```
+
+
+
+# 5.5 bar chart ggplot2: (short)
+```{r}
+## WGS
+# making the proper dataframe
+
+
+short.mat.wgs <- as.matrix(short.mat.sensitive[,1:24])
+
+df.short.wgs <- melt(short.mat.wgs)
+df.short.wgs <- data.frame(df.short.wgs)
+```
+
+```{r}
+# Colors:
+m <- c(cividis(9), viridis(9), magma(2))
+tol21rainbow= c("#771155", "#AA4488", "#CC99BB", "#114477", "#4477AA", "#77AADD", "#117777", "#44AAAA", "#77CCCC", "#117744", "#44AA77", "#88CCAA", "#777711", "#AAAA44", "#DDDD77", "#774411", "#AA7744", "#DDAA77", "#771122", "#AA4455", "#DD7788")
+
+
+g <- ggplot(df.short.wgs, aes(df.short.wgs$Var2, df.short.wgs$value, fill = df.short.wgs$Var1), color = viridis(10))
+g + geom_bar(stat = "identity") + scale_color_viridis() + theme(axis.text.x = element_text(angle=65, vjust=0.6)) +  labs(title="Representation pathways", subtitle="Metagenomic Samples", caption="Source samples: franzosa et al., 2014") + xlab("samples") + ylab("counts") + scale_fill_manual(values = m)
+```
+
+
+```{r}
+## trans
+# making the proper dataframe
+
+
+short.mat.trans <- as.matrix(short.mat.sensitive[,25:48])
+
+df.short.trans <- melt(short.mat.trans)
+df.short.trans <- data.frame(df.short.trans)
+```
+
+```{r}
+# Colors:
+m <- c(cividis(9), viridis(9), magma(2))
+tol21rainbow= c("#771155", "#AA4488", "#CC99BB", "#114477", "#4477AA", "#77AADD", "#117777", "#44AAAA", "#77CCCC", "#117744", "#44AA77", "#88CCAA", "#777711", "#AAAA44", "#DDDD77", "#774411", "#AA7744", "#DDAA77", "#771122", "#AA4455", "#DD7788")
+
+
+g <- ggplot(df.short.trans, aes(df.short.trans$Var2, df.short.trans$value, fill = df.short.trans$Var1), color = viridis(10))
+g + geom_bar(stat = "identity") + scale_color_viridis() + theme(axis.text.x = element_text(angle=65, vjust=0.6)) +  labs(title="Representation pathways", subtitle="Metatranscriptomic Samples", caption="Source samples: franzosa et al., 2014") + xlab("samples") + ylab("counts") + scale_fill_manual(values = m)
+```
+
+## bar chart ggplot2: (Concatenated)
+```{r}
+## Trans
+# making the proper dataframe
+
+
+concatenated.mat.trans <- aggr.mat.sensitive[,1:8]
+df.con.trans <- melt(concatenated.mat.trans)
+```
+
+```{r}
+# Colors:
+m <- c(cividis(9), viridis(9), magma(2))
+tol21rainbow= c("#771155", "#AA4488", "#CC99BB", "#114477", "#4477AA", "#77AADD", "#117777", "#44AAAA", "#77CCCC", "#117744", "#44AA77", "#88CCAA", "#777711", "#AAAA44", "#DDDD77", "#774411", "#AA7744", "#DDAA77", "#771122", "#AA4455", "#DD7788")
+
+
+g <- ggplot(df.con.trans, aes(df.con.trans$Var2, df.con.trans$value, fill = df.con.trans$Var1), color = viridis(10))
+g + geom_bar(stat = "identity") + scale_color_viridis() + theme(axis.text.x = element_text(angle=65, vjust=0.6)) +  labs(title="Representation pathways", subtitle="Metatranscriptomic Samples", caption="Source samples: franzosa et al., 2014") + xlab("samples") + ylab("counts") + scale_fill_manual(values = m)
+```
+
+```{r}
+## WGS
+# making the proper dataframe
+concatenated.mat.wgs <- aggr.mat.sensitive[,9:16]
+df.con.wgs <- melt(concatenated.mat.wgs)
+```
+
+```{r}
+# Colors:
+m <- c(cividis(9), viridis(9), magma(2))
+tol21rainbow= c("#771155", "#AA4488", "#CC99BB", "#114477", "#4477AA", "#77AADD", "#117777", "#44AAAA", "#77CCCC", "#117744", "#44AA77", "#88CCAA", "#777711", "#AAAA44", "#DDDD77", "#774411", "#AA7744", "#DDAA77", "#771122", "#AA4455", "#DD7788")
+
+
+g <- ggplot(df.con.wgs, aes(df.con.wgs$Var2, df.con.wgs$value, fill = df.con.wgs$Var1), color = viridis(10))
+g + geom_bar(stat = "identity") + scale_color_viridis() + theme(axis.text.x = element_text(angle=65, vjust=0.6)) +  labs(title="Representation pathways", subtitle="Metagenomic Samples", caption="Source samples: franzosa et al., 2014") + xlab("samples") + ylab("counts") + scale_fill_manual(values = m)
+```
+
+```{r}
+## WGS vs Trans
+# making the proper dataframe
+concatenated.mat.all <- aggr.mat.sensitive
+df.con.all <- melt(concatenated.mat.all)
+
+```
+
+```{r}
+# Colors:
+m <- c(cividis(9), viridis(9), magma(2))
+tol21rainbow= c("#771155", "#AA4488", "#CC99BB", "#114477", "#4477AA", "#77AADD", "#117777", "#44AAAA", "#77CCCC", "#117744", "#44AA77", "#88CCAA", "#777711", "#AAAA44", "#DDDD77", "#774411", "#AA7744", "#DDAA77", "#771122", "#AA4455", "#DD7788")
+
+
+g <- ggplot(df.con.all, aes(df.con.all$Var2, df.con.all$value, fill = df.con.all$Var1), color = viridis(10))
+g + geom_bar(stat = "identity") + scale_color_viridis() + theme(axis.text.x = element_text(angle=65, vjust=0.6)) +  labs(title="Representation pathways", subtitle="Metagenomic and metatranscriptomic Samples", caption="Source samples: franzosa et al., 2014") + xlab("samples") + ylab("counts") + scale_fill_manual(values = m)
+```
+
+
+
+
+
+
+```{r}
+## Oral and Stool
+# making the proper dataframe
+
+oral.stool.wgs$Pathways <- rownames(oral.stool.wgs)
+df.melt.oral.stool <- melt(oral.stool.wgs)
+#df.melt.oral.stool$cat <- " "
+```
+
+```{r}
+# Colors:
+m <- c(magma(9), viridis(9),plasma(2))
+tol21rainbow= c("#771155", "#AA4488", "#CC99BB", "#114477", "#4477AA", "#77AADD", "#117777", "#44AAAA", "#77CCCC", "#117744", "#44AA77", "#88CCAA", "#777711", "#AAAA44", "#DDDD77", "#774411", "#AA7744", "#DDAA77", "#771122", "#AA4455", "#DD7788")
+
+
+g <- ggplot(df.melt.oral.stool, aes(x = df.melt.oral.stool$variable, y = df.melt.oral.stool$value, fill = df.melt.oral.stool$Pathways), color = viridis(10))
+g + geom_bar(stat = "identity") + scale_color_viridis() + theme(axis.text.x = element_text(angle=65, vjust=0.6)) +  labs(title="Representation pathways", subtitle="Oral and Stool", caption="Source samples: franzosa et al., 2014") + xlab("samples") + ylab("counts") + scale_fill_manual(values = m)
+```
+
+
+## 6) Testing significance
+https://www.r-bloggers.com/two-sample-students-t-test-1/
+
+#Multile hypothesis testing wgs vs trans:
+```{r}
+## Performing multiple hypothisis tests with a two sided value to determine if the WGS data and trans data differs in expression counts.
+pvals <- sapply(1:nrow(short.mat.sensitive), function(i) {
+  t.test(short.mat.sensitive[i,1:24], short.mat.sensitive[i,25:48], "two.sided")$p.value
+  })
+hist(pvals)
+pvals
+```
+
+```{r}
+df <- data.frame(rownames(short.mat.sensitive), pvals)
+df <- df[order(-df$pvals),]
+df$Bonferroni <- p.adjust(df$pvals, method = "bonferroni")
+df$BH <- p.adjust(df$pvals, method = "BH")
+df$holm <- p.adjust(df$pvals, method = "holm")
+df$hochberg <- p.adjust(df$pvals, method = "hochberg")
+df$hommel <- p.adjust(df$pvals, method = "hommel")
+df$BY <- p.adjust(df$pvals, method = "BY")
+df
+```
+```{r}
+X <- df$pvals
+Y <- cbind(df$Bonferroni,df$BH,df$holm,df$hochberg,df$hommel,df$BY)
+matplot(X, Y, xlab="Raw p-value", ylab="Adjusted p-value", type="l", asp=1, col=1:6, lty = 1, lwd = 2)
+legend("bottomright", legend = c("Bonferroni", "BH", "holm", "hochberg", "hommel", "BY"), col=1:6, cex = 1, pch = 16)
+abline(0, 1, col=1, lty=2, lwd=1)
+```
+
+#Multile hypothesis testing oral vs stool:
+```{r}
+## Performing multiple hypothisis tests with a two sided value to determine if the WGS data and trans data differs in expression counts.
+pvals <- sapply(1:nrow(oral.stool.wgs), function(i) {
+  t.test(oral.stool.wgs[i,1:8], oral.stool.wgs[i,9:16], "two.sided")$p.value
+  })
+hist(pvals)
+pvals
+```
+
+```{r}
+df <- data.frame(rownames(oral.stool.wgs), pvals)
+df <- df[order(-df$pvals),]
+df$Bonferroni <- p.adjust(df$pvals, method = "bonferroni")
+df$BH <- p.adjust(df$pvals, method = "BH")
+df$holm <- p.adjust(df$pvals, method = "holm")
+df$hochberg <- p.adjust(df$pvals, method = "hochberg")
+df$hommel <- p.adjust(df$pvals, method = "hommel")
+df$BY <- p.adjust(df$pvals, method = "BY")
+df
+```
+```{r}
+X <- df$pvals
+Y <- cbind(df$Bonferroni,df$BH,df$holm,df$hochberg,df$hommel,df$BY)
+matplot(X, Y, xlab="Raw p-value", ylab="Adjusted p-value", type="l", asp=1, col=1:6, lty = 1, lwd = 2)
+legend("bottomright", legend = c("Bonferroni", "BH", "holm", "hochberg", "hommel", "BY"), col=1:6, cex = 1, pch = 16)
+abline(0, 1, col=1, lty=2, lwd=1)
+```
+
+DO still:
+- Check effect of normalisation
+--> OK, TPM is a relative abundance estimate. This means that if you want to compare across samples that the libsize normalization should still be excecuted. Also, by looking at the non-normalized data less differences are significant and the heatmap shows weird distributions. 
+
+- Validate the pathway by running three other sensitivities (one can already run)
+--> one is running
+--> Make a plot like this: Dataframe contains the average for each pathway according to each method. Then, the average gets plotted for the pathways and the methods are the 4 different lines. Like this: https://www.highcharts.com/docs/chart-and-series-types/line-chart 
+
+- Instead of concatenating the samples mark them seperately
+--> Done, now it is clear which samples in the heatmap belong to each other.
+
+- Run Oral metagenomes as well
+--> make and build heatmap and barchart (and PCA plot) for this data as well. Combine the data in one barchart as to be able to compare the samples with each other. 
+
+!!!post on github:
+https://zonca.github.io/2017/02/publish-research-software-github.html
+
+
+- Make pp for victoria
+--> OK
+
+New things:
+- Run all the samples again so they include the housekeeping genes as well. 
+--> Only vfast needs to be run now. First the metagenomes.
+
+- allignemnt of housekeeping gene sequences in Clustal to see if the sequences are the same. Then take one sequence of each organism and put those in the results or aggregate over mean if the same and aggregate over sum if not the same.
+--> OK I did this and I found an overall distance of 30-90 between the housekeeping genes from different species. This means that aggregation over sum is adequate here. 
+
+
+- making the name vector for the housekeeping genes
+--> OK am busy with running the oral samples over again. DONE! this has been finished. 
+
+- put housekeeping genes in analysis.
+--> Is running
+
+- Oral vs stool compare one by one and make the plot more clear
+--> renamed the samples 
+
+- New samples are in scratch folder of Wouter Lokhorst
+--> Not for this thesis!
+
+
+
+- Anja and sandra mail layout thesis report
+--> Layout should be one column and no more than 15 pages content
+
+- backup all my stuff to nexenta
+- mention significance in heatmap
+- document scripts (github)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
