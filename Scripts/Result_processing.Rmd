@@ -28,7 +28,7 @@ library(forecast)
 ```
 
 
-## Steps:
+# Steps:
 
 1) Loading in the data
 2) Making the metagenomeSeq object
@@ -37,8 +37,8 @@ library(forecast)
 5) Visualizations 
 6) Testing significance
 
-## 1) obtaining the dataframes
-# 1.1 Loading and transposing
+# 1) obtaining the dataframes
+## 1.1 Loading and transposing
 ```{r}
 ## very-sensitive
 # Loading in the metagenomic data:
@@ -90,7 +90,7 @@ dat.oral$V92 <- NULL
 dat.oral <- t(dat.oral)
 ```
 
-# 1.2 Sanitiy check:
+## 1.2 Sanitiy check:
 
 ```{r}
 dim(dat.wgs.vsensitive)
@@ -109,7 +109,7 @@ Here the dataframes have one row and column to many which are the rownames and c
 
 The 91 stems from the addition of the 30 housekeeping genes as well. 
 
-# 1.3 Combining both data:
+## 1.3 Combining both data:
 
 ```{r}
 dat.all.vsensitive <- data.frame(dat.wgs.vsensitive, dat.trans.vsensitive)
@@ -127,7 +127,7 @@ dat.all.vfast$X1.1 <- NULL
 
 
 
-# 1.4 writing the data to new file so that it can be loaded into metagenomeseq
+## 1.4 writing the data to new file so that it can be loaded into metagenomeseq
 ```{r}
 # Writing the data so that it can be read in as a MetagenomeSeq object, this includes removing the quotation marks and the rownames 
 write.table(dat.all.vsensitive, file = "metagenomeSeq_vsensitive.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
@@ -142,9 +142,9 @@ write.table(dat.oral, file = "metaSeq_oral.txt", sep = "\t", quote = FALSE, row.
 ```
 
 
-## 2) Making the MetagenomeSeq object
+# 2) Making the MetagenomeSeq object
 
-# 2.1 loading the data
+## 2.1 loading the data
 ```{r}
 # All data:
 met.vsensitive <- loadMeta("metagenomeSeq_vsensitive.txt", sep = "\t")
@@ -154,7 +154,7 @@ met.vfast <- loadMeta("metagenomeSeq_vfast.txt", sep = "\t")
 met.oral <- loadMeta("metaSeq_oral.txt", sep = "\t")
 ```
 
-# 2.2 building the objects
+## 2.2 building the objects
 ```{r}
 # Making the metagenomeSeq objects:
 d.vsensitive <- newMRexperiment(met.vsensitive$counts)
@@ -164,7 +164,7 @@ d.vfast <- newMRexperiment(met.vfast$counts)
 d.oral <- newMRexperiment(met.oral$counts)
 ```
 
-## 3) Normalization of the data: (library size)
+# 3) Normalization of the data: (library size)
 ```{r}
 # All data:
 #head(normFactors(d.all))
@@ -181,8 +181,8 @@ mat.oral <- MRcounts(d.oral, norm = T, log = T)
 ```
 Note: It is important that the samples were already normalized for transcript length and total rate (TPM). Here the samples get normalized for lib size as well. It does not matter in this case that the data is already combined before normalization, as the normalization happens per sample. This means that the samples do not influence the normalization of other samples. 
 
-## 4) Concatenation & aggregation
-# 4.1 Concatenation of HOMOLOGS with original pathways:
+# 4) Concatenation & aggregation
+## 4.1 Concatenation of HOMOLOGS with original pathways:
 
 Making the aggragation ready data matrix:
 ```{r}
@@ -223,7 +223,7 @@ rownames(mat.oral) <- aggr.names.housekeeping
 short.mat.oral <- aggregate(mat.oral, list(aggr.names.housekeeping), "sum")
 ```
 
-# 4.2 Renaming the sample names:
+## 4.2 Renaming the sample names:
 
 Here I used the SRA runtable to look up which samples belong to each other. Then I make a vector that contains those sample names. 
 ```{r}
@@ -266,7 +266,7 @@ short.mat.oral$Group.1 <- NULL
 colnames(short.mat.oral) <- oral.names
 ```
 
-# 4.3 Aggregation of samples over mean:
+## 4.3 Aggregation of samples over mean:
 
 ```{r}
 ## vsensitive
@@ -322,9 +322,9 @@ Available data from here on is:
 
 Method = (vsensitive, sensitive, fast, vfast)
 
-## 5) Vizualisation:
+# 5) Vizualisation:
 
-# 5.1 Method visualization:
+## 5.1 Method visualization:
 
 
 ```{r}
@@ -365,7 +365,7 @@ ggplot(df.method.trans, aes(x=df.method.trans$rownames.short.mat.vsensitive., y 
 ```
 
 
-# 5.2 Heatmap:
+## 5.2 Heatmap:
 
 All data:
 ```{r}
@@ -494,7 +494,7 @@ pheatmap(  mat = oral.stool.wgs,   color = magma(10),  border_color = NA,  cellw
 ```
 
 
-# 5.3 PCA all:
+## 5.3 PCA all:
 ```{r}
 # Initial PCA plot (w outliers)
 pca.all <- prcomp(t(mat.sensitive))
@@ -507,7 +507,7 @@ pca.oral <- prcomp(t(oral.stool.wgs))
 fviz_pca_ind(pca.oral, col.ind = as.factor(col_groups_oral), repel = FALSE, addEllipses=TRUE,ellipse.type="confidence", legend.title="data_type", label = "all")
 ```
 
-# 5.4 PCA concatenated:
+## 5.4 PCA concatenated:
 ```{r}
 # Initial PCA plot (w outliers)
 pca.all <- prcomp(t(aggr.mat.sensitive))
@@ -518,7 +518,7 @@ fviz_pca_ind(pca.all, col.ind = as.factor(col_groups_conc), repel = FALSE, addEl
 
 
 
-# 5.5 bar chart ggplot2: (short)
+## 5.5 bar chart ggplot2: (short)
 ```{r}
 ## WGS
 # making the proper dataframe
@@ -642,10 +642,10 @@ g + geom_bar(stat = "identity") + scale_color_viridis() + theme(axis.text.x = el
 ```
 
 
-## 6) Testing significance
+# 6) Testing significance
 https://www.r-bloggers.com/two-sample-students-t-test-1/
 
-#Multile hypothesis testing wgs vs trans:
+## Multile hypothesis testing wgs vs trans:
 ```{r}
 ## Performing multiple hypothisis tests with a two sided value to determine if the WGS data and trans data differs in expression counts.
 pvals <- sapply(1:nrow(short.mat.sensitive), function(i) {
@@ -674,7 +674,7 @@ legend("bottomright", legend = c("Bonferroni", "BH", "holm", "hochberg", "hommel
 abline(0, 1, col=1, lty=2, lwd=1)
 ```
 
-#Multile hypothesis testing oral vs stool:
+## Multile hypothesis testing oral vs stool:
 ```{r}
 ## Performing multiple hypothisis tests with a two sided value to determine if the WGS data and trans data differs in expression counts.
 pvals <- sapply(1:nrow(oral.stool.wgs), function(i) {
