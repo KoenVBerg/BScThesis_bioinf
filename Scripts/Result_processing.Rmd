@@ -382,7 +382,7 @@ df.method.wgs <- melt(df.method.wgs)
 ```
 
 ```{r}
-ggplot(df.method.wgs, aes(x=df.method.wgs$rownames.short.mat.vsensitive., y = df.method.wgs$value, group =df.method.wgs$variable)) + geom_line(aes(linetype=df.method.wgs$variable), size = 1) + theme_classic() + labs(title = "WGS average counts for each method", y = "Count", x="") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggplot(df.method.wgs, aes(x=df.method.wgs$rownames.short.mat.vsensitive., y = df.method.wgs$value, group =df.method.wgs$variable)) + geom_line(aes(linetype=df.method.wgs$variable), size = 1) + theme_light() + labs(title = "WGS average counts for each method", y = "Count(TPM)", x="") + theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 14), legend.position = "bottom", text = element_text(size=16))
 ```
 
 ```{r}
@@ -401,7 +401,7 @@ df.method.trans <- melt(df.method.trans)
 ```
 
 ```{r}
-ggplot(df.method.trans, aes(x=df.method.trans$rownames.short.mat.vsensitive., y = df.method.trans$value, group =df.method.trans$variable)) + geom_line(aes(linetype=df.method.wgs$variable), size = 1) + theme_classic() + labs(title = "Trans average counts for each method", y = "Count", x="") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggplot(df.method.trans, aes(x=df.method.trans$rownames.short.mat.vsensitive., y = df.method.trans$value, group =df.method.trans$variable)) + geom_line(aes(linetype=df.method.trans$variable), size = 1) + theme_light() + labs(title = "Trans average counts for each method", y = "Count(TPM)", x="") + theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 14), legend.position = "bottom", text = element_text(size=16))
 ```
 
 
@@ -523,11 +523,11 @@ pheatmap(
   cellheight = 15,
   annotation_col = mat_oral,
   annotation_colors = mat_colours,
-  main = "Heatmap of oral metagenomic samples", 
+  main = "Heatmap of oral and stool metagenomic samples", 
   show_colnames = T,
   cluster_cols = F)
 
-pheatmap(  mat = oral.stool.wgs,   color = magma(10),  border_color = NA,  cellwidth = 15, cellheight = 15, annotation_col = mat_oral, annotation_colors = mat_colours, main = "Heatmap of oral metagenomic samples", show_colnames = T, cluster_cols = F)
+pheatmap(  mat = oral.stool.wgs,   color = magma(10),  border_color = NA,  cellwidth = 15, cellheight = 15, annotation_col = mat_oral, annotation_colors = mat_colours, main = "Heatmap of oral and stool metagenomic samples", show_colnames = T, cluster_cols = F)
 
 
 # From: http://slowkow.com/notes/heatmap-tutorial/
@@ -544,16 +544,20 @@ fviz_pca_ind(pca.all, col.ind = as.factor(col_groups), repel = FALSE, addEllipse
 
 # Oral samples
 pca.oral <- prcomp(t(oral.stool.wgs))
-fviz_pca_ind(pca.oral, col.ind = as.factor(col_groups_oral), repel = FALSE, addEllipses=TRUE,ellipse.type="confidence", legend.title="data_type", label = "all")
+fviz_pca_ind(pca.oral, col.ind = as.factor(col_groups_oral), repel = FALSE, addEllipses=TRUE,ellipse.type="confidence", legend.title="data_type", label = "all", cex=4)
 ```
 
 ## 5.4 PCA concatenated:
 ```{r}
 # Initial PCA plot (w outliers)
 pca.all <- prcomp(t(aggr.mat.sensitive))
-fviz_pca_ind(pca.all, col.ind = as.factor(col_groups_conc), repel = FALSE, addEllipses=TRUE,ellipse.type="confidence", legend.title="data_type", label = "all")
 
-fviz_pca_ind(pca.all, col.ind = as.factor(col_groups_conc), repel = FALSE, addEllipses=TRUE,ellipse.type="confidence", legend.title="data_type", label = "none")
+summary(pca.all)
+
+
+fviz_pca_biplot(pca.all, col.ind = as.factor(col_groups_conc), repel = T, addEllipses=F,ellipse.type="confidence", legend.title="data_type", label = "all", cex = 1.5, title = "Biplot metagenomic and metatranscriptomic samples")
+
+fviz_pca_biplot(pca.all, col.ind = as.factor(col_groups_conc), repel = FALSE, addEllipses=F,ellipse.type="confidence", legend.title="data_type", label = "none", cex = 1.5)
 ```
 
 
@@ -742,78 +746,4 @@ matplot(X, Y, xlab="Raw p-value", ylab="Adjusted p-value", type="l", asp=1, col=
 legend("bottomright", legend = c("Bonferroni", "BH", "holm", "hochberg", "hommel", "BY"), col=1:6, cex = 1, pch = 16)
 abline(0, 1, col=1, lty=2, lwd=1)
 ```
-
-DO still:
-- Check effect of normalisation
---> OK, TPM is a relative abundance estimate. This means that if you want to compare across samples that the libsize normalization should still be excecuted. Also, by looking at the non-normalized data less differences are significant and the heatmap shows weird distributions. 
-
-- Validate the pathway by running three other sensitivities (one can already run)
---> one is running
---> Make a plot like this: Dataframe contains the average for each pathway according to each method. Then, the average gets plotted for the pathways and the methods are the 4 different lines. Like this: https://www.highcharts.com/docs/chart-and-series-types/line-chart 
-
-- Instead of concatenating the samples mark them seperately
---> Done, now it is clear which samples in the heatmap belong to each other.
-
-- Run Oral metagenomes as well
---> make and build heatmap and barchart (and PCA plot) for this data as well. Combine the data in one barchart as to be able to compare the samples with each other. 
-
-!!!post on github:
-https://zonca.github.io/2017/02/publish-research-software-github.html
-
-
-- Make pp for victoria
---> OK
-
-New things:
-- Run all the samples again so they include the housekeeping genes as well. 
---> Only vfast needs to be run now. First the metagenomes.
-
-- allignemnt of housekeeping gene sequences in Clustal to see if the sequences are the same. Then take one sequence of each organism and put those in the results or aggregate over mean if the same and aggregate over sum if not the same.
---> OK I did this and I found an overall distance of 30-90 between the housekeeping genes from different species. This means that aggregation over sum is adequate here. 
-
-
-- making the name vector for the housekeeping genes
---> OK am busy with running the oral samples over again. DONE! this has been finished. 
-
-- put housekeeping genes in analysis.
---> Is running
-
-- Oral vs stool compare one by one and make the plot more clear
---> renamed the samples 
-
-- New samples are in scratch folder of Wouter Lokhorst
---> Not for this thesis!
-
-
-
-- Anja and sandra mail layout thesis report
---> Layout should be one column and no more than 15 pages content
-
-- backup all my stuff to nexenta
-- mention significance in heatmap
-
-- document scripts (github)
---> Done
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
