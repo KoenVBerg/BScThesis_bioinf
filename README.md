@@ -105,5 +105,5 @@ directly. Although the processing of the results varies among individuals, the
 script used here, results_processing.rmd, can be used for inspiration. It uses
 metagenomeSeq to normalize the results and uses ggplot2 for nice visualizations. 
 
-# Research Paper
-The research paper can be found as the included pdf file: **insert name**
+# Research Paperper:
+The research paper can be found as the included pdf file: Insights into metabolic pathway representation from analysis of human metagenomic and metatranscriptomic samples
